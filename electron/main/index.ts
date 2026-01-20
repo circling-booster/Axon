@@ -14,6 +14,8 @@ import log from "electron-log/main"
 import { deeplinkHandler, refreshConfig, setOAPTokenToHost, setupAppImageDeepLink } from "./deeplink"
 import { oapClient } from "./oap"
 import electronDl from "electron-dl"
+// [추가] folk 폴더의 프록시 서버 모듈 임포트
+import { startLocalServer } from "../../folk/proxyServer"
 // import core from "core-js"
 
 log.initialize()
@@ -145,6 +147,9 @@ export async function createWindow() {
     win.setMenu(null)
     win.loadFile(indexHtml)
   }
+
+  // [추가] 커스텀 프록시 서버 실행
+  startLocalServer(win)
 
   // Test actively push message to the Electron-Renderer
   win.webContents.on("did-finish-load", () => {

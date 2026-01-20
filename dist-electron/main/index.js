@@ -31,7 +31,7 @@ import require$$0$6, { execSync } from "child_process";
 import electronDl, { download, CancelError } from "electron-dl";
 import require$$0$5 from "fs";
 import require$$0$7 from "util";
-import { createServer } from "node:http";
+import { createServer, request } from "node:http";
 import require$$1$3 from "fs/promises";
 import { Anthropic } from "@anthropic-ai/sdk";
 import { Ollama } from "ollama";
@@ -3206,7 +3206,7 @@ function requireWebsocket() {
     }
     const defaultPort = isSecure ? 443 : 80;
     const key = randomBytes(16).toString("base64");
-    const request = isSecure ? https.request : http.request;
+    const request2 = isSecure ? https.request : http.request;
     const protocolSet = /* @__PURE__ */ new Set();
     let perMessageDeflate;
     opts.createConnection = opts.createConnection || (isSecure ? tlsConnect : netConnect);
@@ -3283,12 +3283,12 @@ function requireWebsocket() {
       if (opts.auth && !options2.headers.authorization) {
         options2.headers.authorization = "Basic " + Buffer.from(opts.auth).toString("base64");
       }
-      req = websocket2._req = request(opts);
+      req = websocket2._req = request2(opts);
       if (websocket2._redirects) {
         websocket2.emit("redirect", websocket2.url, req);
       }
     } else {
-      req = websocket2._req = request(opts);
+      req = websocket2._req = request2(opts);
     }
     if (opts.timeout) {
       req.on("timeout", () => {
@@ -9662,7 +9662,7 @@ function requireRemote() {
       },
       sendRequestFn({ serverUrl, requestOptions, body }) {
         const httpTransport = serverUrl.startsWith("https:") ? https : http;
-        const request = httpTransport.request(serverUrl, {
+        const request2 = httpTransport.request(serverUrl, {
           method: "POST",
           ...requestOptions,
           headers: {
@@ -9671,9 +9671,9 @@ function requireRemote() {
             ...requestOptions.headers
           }
         });
-        request.write(body);
-        request.end();
-        return request;
+        request2.write(body);
+        request2.end();
+        return request2;
       }
     });
     function transport(message) {
@@ -9685,16 +9685,16 @@ function requireRemote() {
         message: { ...message, data: transform({ logger, message, transport }) },
         transport
       });
-      const request = transport.sendRequestFn({
+      const request2 = transport.sendRequestFn({
         serverUrl: transport.url,
         requestOptions: transport.requestOptions,
         body: Buffer.from(body, "utf8")
       });
-      request.on("error", (error) => transport.processErrorFn({
+      request2.on("error", (error) => transport.processErrorFn({
         error,
         logger,
         message,
-        request,
+        request: request2,
         transport
       }));
     }
@@ -9806,51 +9806,63 @@ var mainExports = requireMain();
 const log = /* @__PURE__ */ getDefaultExportFromCjs(mainExports);
 const PORT = 19999;
 function startLocalServer(win2) {
-  const server = createServer(async (req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    if (req.method === "OPTIONS") {
-      res.writeHead(200);
-      res.end();
+  const server = createServer((clientReq, clientRes) => {
+    clientRes.setHeader("Access-Control-Allow-Origin", "*");
+    clientRes.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    clientRes.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    if (clientReq.method === "OPTIONS") {
+      clientRes.writeHead(200);
+      clientRes.end();
       return;
     }
-    if (req.url === "/chat" && req.method === "POST") {
-      let body = "";
-      req.on("data", (chunk) => body += chunk.toString());
-      req.on("end", async () => {
-        try {
-          const { message } = JSON.parse(body);
-          console.log(`[Server] Received external message: ${message}`);
-          const reply = await requestToRenderer(win2, message);
-          console.log;
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ reply }));
-        } catch (e) {
-          console.error(e);
-          res.writeHead(500);
-          res.end(JSON.stringify({ error: e.message || "Internal Error" }));
-        }
+    if (!serviceStatus.port || !serviceStatus.ip) {
+      const errorMsg = JSON.stringify({
+        success: false,
+        error: "Internal backend service is not ready yet.",
+        status: "initializing"
       });
-    } else {
-      res.writeHead(404);
-      res.end("Not Found");
+      clientRes.writeHead(503, { "Content-Type": "application/json" });
+      clientRes.end(errorMsg);
+      return;
     }
+    const options2 = {
+      hostname: serviceStatus.ip,
+      port: serviceStatus.port,
+      path: clientReq.url,
+      method: clientReq.method,
+      headers: {
+        ...clientReq.headers,
+        host: `${serviceStatus.ip}:${serviceStatus.port}`
+      }
+    };
+    const proxyReq = request(options2, (proxyRes) => {
+      clientRes.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
+      proxyRes.pipe(clientRes, { end: true });
+    });
+    proxyReq.on("error", (err) => {
+      console.error(`[Proxy Error] ${clientReq.method} ${clientReq.url}:`, err.message);
+      if (!clientRes.headersSent) {
+        clientRes.writeHead(502, { "Content-Type": "application/json" });
+        clientRes.end(JSON.stringify({ success: false, error: "Bad Gateway: Failed to connect to internal backend." }));
+      }
+    });
+    proxyReq.on("response", (proxyRes) => {
+      if (clientReq.method !== "GET" && clientReq.method !== "HEAD") {
+        if (proxyRes.statusCode && proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+          if (!win2.isDestroyed()) {
+            win2.webContents.send("refresh");
+            console.log(`[Proxy] Triggered UI refresh for ${clientReq.method} request.`);
+          }
+        }
+      }
+    });
+    clientReq.pipe(proxyReq, { end: true });
   });
-  server.listen(PORT, "127.0.0.1", () => {
-    console.log(`Dive Communication Server running on http://127.0.0.1:${PORT}`);
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Dive API Proxy Server running on port ${PORT}`);
+    console.log(`Target Internal Backend: ${serviceStatus.ip}:${serviceStatus.port}`);
   });
   return server;
-}
-function requestToRenderer(win2, message) {
-  return new Promise((resolve) => {
-    win2.webContents.send("external-chat-request", message);
-    ipcMain.once("external-chat-response", (_event, reply) => {
-      resolve(reply);
-    });
-    setTimeout(() => {
-    }, 6e4);
-  });
 }
 log.initialize();
 log.transports.file.resolvePathFn = () => path.join(logDir, "main-electron.log");
