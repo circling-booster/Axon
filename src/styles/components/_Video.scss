@@ -1,0 +1,65 @@
+@use "../_variables" as *;
+
+.videojs{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.video-player-root {
+  width: 525px;
+  height: 275px;
+  position: relative;
+
+  &.fullscreen{
+    width: 100vw;
+    height: 100vh;
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.progress-bar-container{
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+  right: 16px;
+  opacity: 0;
+  transition: opacity .3s;
+
+  .progress-bar{
+    -webkit-appearance: none;
+    width: 100%;
+    height: 5px;
+    outline: none;
+    border-radius: 16px;
+    cursor: pointer;
+    background: linear-gradient(to right,
+      var(--text-invert) 0%,
+      var(--text-invert) 0%,  /*<- value */
+      var(--bg-gray-op-medium, var(--stroke-gray-medium)) 0%, /*<- value */
+      var(--bg-gray-op-medium, var(--stroke-gray-medium)) 100%
+    );
+    box-shadow: rgba(36, 52, 63, 0.3) 0px 0px 16px;
+
+    &::-webkit-slider-thumb{
+      -webkit-appearance: none;
+      position: relative;
+      width: 16px;
+      height: 16px;
+      background: var(--text-invert);
+      border-radius: 50%;
+      opacity: 1;
+    }
+
+    &:hover::-webkit-slider-thumb{
+      opacity: 1;
+    }
+  }
+}

@@ -1,0 +1,1421 @@
+import asyncio
+import json
+import logging
+import random
+import secrets
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import patch
+from uuid import UUID
+
+import pytest
+from langchain_core.callbacks import AsyncCallbackHandler
+from langchain_core.messages import AIMessage, HumanMessage, ToolCall, ToolMessage
+from langchain_core.tools import tool
+from mcp.types import Tool
+
+from dive_mcp_host.host.conf import HostConfig, LogConfig, ProxyUrl
+from dive_mcp_host.host.conf.llm import LLMConfig
+from dive_mcp_host.host.host import DiveMcpHost
+from dive_mcp_host.host.tools import McpServer, McpServerInfo, ServerConfig, ToolManager
+from dive_mcp_host.host.tools.elicitation_manager import ElicitationManager
+from dive_mcp_host.host.tools.mcp_server import McpTool
+from dive_mcp_host.host.tools.model_types import ClientState
+from dive_mcp_host.host.tools.oauth import OAuthManager
+from dive_mcp_host.host.tools.plugin import ToolManagerPlugin
+
+if TYPE_CHECKING:
+    from dive_mcp_host.models.fake import FakeMessageToolModel
+
+
+@pytest.fixture
+def no_such_file_mcp_server() -> dict[str, ServerConfig]:
+    """MCP server that does not exist."""
+    return {
+        "no_such_file": ServerConfig(
+            name="no_such_file",
+            command="no_such_file",
+            transport="stdio",
+        ),
+        "sse": ServerConfig(
+            name="sse_server",
+            url="http://localhost:2/sse",
+            transport="sse",
+        ),
+    }
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_sse(
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager."""
+    _, configs = echo_tool_sse_server
+    async with (
+        ToolManager(configs, log_config) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!"},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_stdio(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager."""
+    async with ToolManager(echo_tool_stdio_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!"},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_streamable(
+    echo_tool_streamable_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager."""
+    _, configs = echo_tool_streamable_server
+    async with (
+        ToolManager(configs, log_config) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!"},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_tool_name_with_slash(
+    echo_with_slash_tool_streamable_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager."""
+    _port, configs = echo_with_slash_tool_streamable_server
+    async with (
+        ToolManager(configs, log_config) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!"},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_reload(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager's reload."""
+    async with ToolManager(echo_tool_stdio_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+
+        # test reload with same config
+        await tool_manager.reload(echo_tool_stdio_config)
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+
+        # test reload with modified config
+        new_config = echo_tool_stdio_config.copy()
+        new_config["fetch"] = ServerConfig(
+            name="fetch",
+            command="uvx",
+            args=["mcp-server-fetch"],
+            transport="stdio",
+        )
+        await tool_manager.reload(new_config)
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "fetch", "ignore"]
+
+        # test remove tool
+        await tool_manager.reload(echo_tool_stdio_config)
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+
+        # verify tools still work after reload
+        for tool in tools:
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!"},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+
+        # remove all tools
+        await tool_manager.reload({})
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 0
+
+
+@pytest.mark.asyncio
+async def test_stdio_parallel(
+    echo_tool_stdio_config: dict[str, ServerConfig], log_config: LogConfig
+) -> None:
+    """Test that stdio tools can execute in parallel.
+
+    This test is to ensure that the tool manager can handle multiple requests
+    simultaneously and respond correctly.
+    """
+    async with ToolManager(echo_tool_stdio_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        echo_tool = None
+        ignore_tool = None
+        for tool in tools:
+            if tool.name == "echo":
+                echo_tool = tool
+            elif tool.name == "ignore":
+                ignore_tool = tool
+        assert echo_tool is not None
+        assert ignore_tool is not None
+
+        random_message = secrets.token_hex(2048)
+
+        async def test_echo():
+            return await echo_tool.ainvoke(
+                ToolCall(
+                    name=echo_tool.name,
+                    id=str(random.randint(1, 1000000)),  # noqa: S311
+                    args={"message": random_message},
+                    type="tool_call",
+                ),
+            )
+
+        async def test_ignore():
+            return await ignore_tool.ainvoke(
+                ToolCall(
+                    name=ignore_tool.name,
+                    id=str(random.randint(1, 1000000)),  # noqa: S311
+                    args={"message": random_message},
+                    type="tool_call",
+                ),
+            )
+
+        n_tasks = 30
+        async with asyncio.TaskGroup() as tg:
+            echo_tasks = [tg.create_task(test_echo()) for _ in range(n_tasks)]
+            ignore_tasks = [tg.create_task(test_ignore()) for _ in range(n_tasks)]
+        echo_results = await asyncio.gather(*echo_tasks)
+        ignore_results = await asyncio.gather(*ignore_tasks)
+        assert len(echo_results) == n_tasks
+        assert len(ignore_results) == n_tasks
+        for result in echo_results:
+            assert json.loads(str(result.content))[0]["text"] == random_message
+        for result in ignore_results:
+            assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_massive_tools(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test starting the tool manager with a large number of tools."""
+    echo_config = echo_tool_stdio_config["echo"]
+    more_tools = 10
+    for i in range(more_tools):
+        echo_tool_stdio_config[f"echo_{i}"] = echo_config.model_copy(
+            update={"name": f"echo_{i}"},
+        )
+    async with ToolManager(echo_tool_stdio_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        # 3 tools per server (echo, ignore, elicit) * (more_tools + 1) servers
+        assert len(tools) == 3 * (more_tools + 1)
+
+
+@pytest.mark.asyncio
+async def test_remote_http_mcp_tool_exception_handling(
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test the exception handling of the MCP tool.
+
+    This test verifies that:
+    1. When a tool call fails, the exception is properly propagated to the caller
+    2. Subsequent tool calls succeed after the connection is restored
+    """
+    _, configs = echo_tool_sse_server
+    async with (
+        McpServer(
+            name="echo",
+            config=configs["echo"],
+            log_buffer_length=log_config.buffer_length,
+            auth_manager=OAuthManager(),
+            elicitation_manager=ElicitationManager(),
+        ) as server,
+    ):
+        server.RESTART_INTERVAL = 0.1
+        tools = server.mcp_tools
+        await server.wait([ClientState.RUNNING])
+
+        # First successful tool call creates a session
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        session = server._session_store._map["default"].session
+
+        # session should be reused
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        assert server._session_store._map["default"].session == session
+
+        # Error removes the session
+        with patch("dive_mcp_host.host.tools.hack.ClientSession.call_tool") as mocked:
+            mocked.side_effect = RuntimeError("test")
+            with pytest.raises(RuntimeError, match="test"):
+                await tools[0].ainvoke(
+                    ToolCall(
+                        name=tools[0].name,
+                        id="123",
+                        args={"xxxx": "Hello, world!"},
+                        type="tool_call",
+                    ),
+                )
+            assert mocked.call_count == 1
+        assert server._client_status in [
+            ClientState.RUNNING,
+            ClientState.RESTARTING,
+        ]
+        assert not server._session_store._map.get("default")
+
+        # New session is created
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        assert server._session_store._map["default"].session
+        session = server._session_store._map["default"].session
+
+        # The session should be reused
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        assert server._session_store._map["default"].session == session
+
+
+@pytest.mark.asyncio
+async def test_local_http_mcp_tool_exception_handling(
+    echo_tool_local_sse_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+):
+    """Test the exception handling of the MCP tool.
+
+    This test verifies that:
+    1. When a tool call fails, the exception is properly propagated to the caller
+    2. Subsequent tool calls succeed after the connection is restored
+    """
+    async with McpServer(
+        name="echo",
+        config=echo_tool_local_sse_config["echo"],
+        log_buffer_length=log_config.buffer_length,
+        auth_manager=OAuthManager(),
+        elicitation_manager=ElicitationManager(),
+    ) as server:
+        server.RESTART_INTERVAL = 0.1
+        tools = server.mcp_tools
+        await server.wait([ClientState.RUNNING])
+
+        # First successful tool call creates a session
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        session = server._session_store["default"]
+
+        # session should be reused
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        assert server._session_store["default"] == session
+
+        # Error removes the session
+        with patch("dive_mcp_host.host.tools.hack.ClientSession.call_tool") as mocked:
+            mocked.side_effect = RuntimeError("test")
+            with pytest.raises(RuntimeError, match="test"):
+                await tools[0].ainvoke(
+                    ToolCall(
+                        name=tools[0].name,
+                        id="123",
+                        args={"xxxx": "Hello, world!"},
+                        type="tool_call",
+                    ),
+                )
+            assert mocked.call_count == 1
+        assert server._client_status in [
+            ClientState.RUNNING,
+            ClientState.RESTARTING,
+        ]
+        assert not server._session_store._map.get("default")
+
+        # New session is created
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        assert server._session_store["default"]
+        session = server._session_store["default"]
+
+        # The session should be reused
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        assert server._session_store["default"] == session
+
+
+@pytest.mark.asyncio
+async def test_stdio_mcp_tool_exception_handling(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+):
+    """Test the exception handling of the MCP tool.
+
+    This test verifies that:
+    1. When a tool call fails, the exception is properly propagated to the caller
+    2. Subsequent tool calls succeed after the connection is restored
+    """
+    async with McpServer(
+        name="echo",
+        config=echo_tool_stdio_config["echo"],
+        log_buffer_length=log_config.buffer_length,
+        auth_manager=OAuthManager(),
+        elicitation_manager=ElicitationManager(),
+    ) as server:
+        server.RESTART_INTERVAL = 0.1
+        tools = server.mcp_tools
+        session = server._stdio_client_session
+        with patch("dive_mcp_host.host.tools.hack.ClientSession.call_tool") as mocked:
+            mocked.side_effect = RuntimeError("test")
+            with pytest.raises(RuntimeError, match="test"):
+                await tools[0].ainvoke(
+                    ToolCall(
+                        name=tools[0].name,
+                        id="123",
+                        args={"xxxx": "Hello, world!"},
+                        type="tool_call",
+                    ),
+                )
+            assert mocked.call_count == 1
+        assert server._client_status in [
+            ClientState.RUNNING,
+            ClientState.RESTARTING,
+        ]
+
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+        # session should be created
+        assert server._session_store["default"]
+        session = server._session_store["default"]
+
+        await server.wait([ClientState.RUNNING])
+        await tools[0].ainvoke(
+            ToolCall(
+                name=tools[0].name,
+                id="123",
+                args={"message": "Hello, world!"},
+                type="tool_call",
+            ),
+        )
+
+        # session should stay the same
+        assert server._session_store["default"]
+        assert session == server._session_store["default"]
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_local_sse(
+    echo_tool_local_sse_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager."""
+    async with ToolManager(echo_tool_local_sse_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!"},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+            logging.info("Tool %s tested", tool.name)
+
+
+@pytest.mark.asyncio
+async def test_host_with_tools(echo_tool_stdio_config: dict[str, ServerConfig]) -> None:
+    """Test the host context initialization."""
+    config = HostConfig(
+        llm=LLMConfig(
+            model="fake",
+            model_provider="dive",
+        ),
+        mcp_servers=echo_tool_stdio_config,
+    )
+    async with DiveMcpHost(config) as mcp_host:
+        await mcp_host._tool_manager.initialized_event.wait()
+        fake_responses = [
+            AIMessage(
+                content="Call echo tool",
+                tool_calls=[
+                    ToolCall(
+                        name="echo",
+                        args={"message": "Hello, world!"},
+                        id="123",
+                        type="tool_call",
+                    ),
+                ],
+            ),
+            AIMessage(
+                content="General message",
+            ),
+        ]
+        cast("FakeMessageToolModel", mcp_host._model).responses = fake_responses
+        async with mcp_host.chat() as chat:
+            responses = [
+                response
+                async for response in chat.query(
+                    HumanMessage(content="Hello, world!"),
+                    stream_mode=["messages"],
+                )
+            ]
+            assert len(responses) == len(fake_responses) + 1  # plus one tool message
+            # need more understanding of the response structure
+            tool_message = responses[-2][1][0]  # type: ignore
+            assert isinstance(tool_message, ToolMessage)
+            assert tool_message.name == "echo"
+            assert json.loads(str(tool_message.content))[0]["text"] == "Hello, world!"
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_info(echo_tool_stdio_config: dict[str, ServerConfig]) -> None:
+    """Test the host context initialization."""
+    config = HostConfig(
+        llm=LLMConfig(
+            model="fake",
+            model_provider="dive",
+        ),
+        mcp_servers=echo_tool_stdio_config,
+    )
+    import dive_mcp_host.host.tools.echo as echo_tool
+
+    async with DiveMcpHost(config) as mcp_host:
+        await mcp_host._tool_manager.initialized_event.wait()
+        assert list(mcp_host.mcp_server_info.keys()) == ["echo"]
+        assert isinstance(mcp_host.mcp_server_info["echo"], McpServerInfo)
+        assert mcp_host.mcp_server_info["echo"].initialize_result is not None
+        assert mcp_host.mcp_server_info["echo"].initialize_result.capabilities
+        assert (
+            mcp_host.mcp_server_info["echo"].initialize_result.instructions
+            == echo_tool.Instructions
+        )
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_info_no_such_file(
+    no_such_file_mcp_server: dict[str, ServerConfig],
+) -> None:
+    """Test the host context initialization."""
+    config = HostConfig(
+        llm=LLMConfig(
+            model="fake",
+            model_provider="dive",
+        ),
+        mcp_servers=no_such_file_mcp_server,
+    )
+    async with DiveMcpHost(config) as mcp_host:
+        await mcp_host._tool_manager.initialized_event.wait()
+        assert list(mcp_host.mcp_server_info.keys()) == [
+            "no_such_file",
+            "sse",
+        ]
+        assert mcp_host.mcp_server_info["no_such_file"] is not None
+        assert mcp_host.mcp_server_info["no_such_file"].initialize_result is None
+        assert mcp_host.mcp_server_info["no_such_file"].error is not None
+        assert (
+            mcp_host.mcp_server_info["no_such_file"].client_status == ClientState.FAILED
+        )
+        assert mcp_host.mcp_server_info["sse"] is not None
+        assert mcp_host.mcp_server_info["sse"].initialize_result is None
+        assert mcp_host.mcp_server_info["sse"].error is not None
+        assert mcp_host.mcp_server_info["sse"].client_status == ClientState.FAILED
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_info_sse_connection_refused(
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool manager's SSE connection refused."""
+    port, configs = echo_tool_sse_server
+    configs["echo"].url = f"http://localhost:{port + 1}/sse"
+    async with (
+        ToolManager(configs, log_config) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 0
+        assert tool_manager.mcp_server_info["echo"].error is not None
+        assert tool_manager.mcp_server_info["echo"].client_status == ClientState.FAILED
+
+
+@pytest.mark.asyncio
+async def test_tool_kwargs(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Some LLM set the tool call argument in kwargs."""
+    async with ToolManager(echo_tool_stdio_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"kwargs": {"message": "Hello, world!"}},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+        for tool in tools:
+            if tool.name == "elicit":
+                continue  # elicit tool requires different args and user interaction
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"kwargs": """{"message": "Hello, world!"}"""},
+                    type="tool_call",
+                ),
+            )
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_uvx_failed(log_config: LogConfig) -> None:
+    """Test the tool manager."""
+    config = {
+        "uvx": ServerConfig(
+            name="uvx",
+            command="uvx",
+            args=["no-such-command"],
+            transport="stdio",
+        ),
+    }
+    async with asyncio.timeout(15), ToolManager(config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 0
+
+
+def test_tool_missing_properties(log_config: LogConfig) -> None:
+    """Test handling of MCP server tool schemas that lack properties.
+
+    Some MCP servers may return tool schemas without a properties field, but certain
+    model providers require properties to be present in the tool call schema.
+    """
+    tool = Tool(
+        name="dummy",
+        description="A dummy tool that returns a fixed string.",
+        inputSchema={"type": "Object"},
+    )
+    mcp_server = McpServer(
+        name="dummy",
+        config=ServerConfig(
+            name="dummy",
+            command="dummy",
+            transport="stdio",
+        ),
+        auth_manager=OAuthManager(),
+        elicitation_manager=ElicitationManager(),
+    )
+    mcp_tool = McpTool.from_tool(tool, mcp_server)
+
+    assert mcp_tool.args_schema is not None
+    if isinstance(mcp_tool.args_schema, dict):
+        assert "properties" in mcp_tool.args_schema
+    else:
+        assert "properties" in mcp_tool.args_schema.model_json_schema()
+
+
+@pytest.mark.asyncio
+async def test_tool_progress(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test the tool progress report."""
+    import logging
+
+    class CustomCallbackManager(AsyncCallbackHandler):
+        async def on_custom_event(
+            self,
+            name: str,
+            data: dict[str, Any],
+            *,
+            run_id: UUID,
+            tags: list[str] | None = None,
+            metadata: dict[str, Any] | None = None,
+            **kwargs: Any,
+        ) -> None:
+            logging.error(
+                "Custom event: %s, run_id: %s, tags: %s, metadata: %s,"
+                " kwargs: %s, data: %s",
+                name,
+                run_id,
+                tags,
+                metadata,
+                kwargs,
+                data,
+            )
+
+    async with ToolManager(echo_tool_stdio_config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert sorted([i.name for i in tools]) == ["echo", "elicit", "ignore"]
+        for tool in tools:
+            if tool.name != "echo":
+                continue
+            result = await tool.ainvoke(
+                ToolCall(
+                    name=tool.name,
+                    id="123",
+                    args={"message": "Hello, world!", "delay_ms": 1000},
+                    type="tool_call",
+                ),
+                config={
+                    "callbacks": [CustomCallbackManager()],
+                },
+            )
+
+            assert isinstance(result, ToolMessage)
+            if tool.name == "echo":
+                assert json.loads(str(result.content))[0]["text"] == "Hello, world!"
+            else:
+                assert json.loads(str(result.content)) == []
+
+
+@pytest.mark.asyncio
+async def test_tool_proxy(
+    subtests,
+    pproxy_server: str,
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+    echo_tool_streamable_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test proxy settings."""
+    with subtests.test("scheme rewrite"):
+        for prot in ["http", "socks5", "socks", "socks4"]:
+            cfg = json.dumps(
+                {
+                    "name": "echo",
+                    "url": "http://localhost:8888/mcp",
+                    "transport": "streamable",
+                    "proxy": f"{prot}://{pproxy_server}",
+                }
+            )
+            m = ServerConfig.model_validate_json(cfg)
+            assert m.proxy
+            match prot:
+                case "http":
+                    assert m.proxy.scheme == "http"
+                case _ if prot.startswith("socks"):
+                    assert m.proxy.scheme == "socks5"
+
+    for test_cfg in [echo_tool_sse_server, echo_tool_streamable_server]:
+        _, config = test_cfg
+        cfg = config.copy()
+        for prot in ["http", "socks5"]:
+            cfg["echo"].proxy = ProxyUrl(f"{prot}://{pproxy_server}")
+            with subtests.test(prot=prot, url=cfg["echo"].url):
+                async with ToolManager(cfg, log_config) as tool_manager:
+                    await tool_manager.initialized_event.wait()
+                    tools = tool_manager.langchain_tools()
+                    assert sorted([i.name for i in tools]) == [
+                        "echo",
+                        "elicit",
+                        "ignore",
+                    ]
+
+
+@pytest.mark.asyncio
+async def test_tool_manager_exclude_tools(
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+):
+    """Make sure excluded tools are not passed to the llm."""
+    _, configs = echo_tool_sse_server
+    async with (
+        ToolManager(configs) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 3
+        assert sorted([t.name for t in tools]) == ["echo", "elicit", "ignore"]
+
+        # Disable 'ignore' tool
+        new_config = deepcopy(configs)
+        new_config["echo"].exclude_tools = ["ignore"]
+        await tool_manager.reload(new_config)
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 2
+        assert sorted([t.name for t in tools]) == ["echo", "elicit"]
+
+
+@pytest.mark.asyncio
+async def test_custum_initalize_timeout(
+    echo_tool_local_sse_config: dict[str, ServerConfig],
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    echo_tool_streamable_server: tuple[int, dict[str, ServerConfig]],
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+):
+    """Test if our customized timeout actually apply."""
+    echo_tool_local_sse_config["echo"].initial_timeout = 0
+    auth_manager = OAuthManager()
+    elicitation_manager = ElicitationManager()
+    async with McpServer(
+        name="echo",
+        config=echo_tool_local_sse_config["echo"],
+        log_buffer_length=log_config.buffer_length,
+        auth_manager=auth_manager,
+        elicitation_manager=elicitation_manager,
+    ) as server:
+        assert server.server_info.client_status == ClientState.FAILED
+
+    echo_tool_stdio_config["echo"].initial_timeout = 0
+    async with McpServer(
+        name="echo",
+        config=echo_tool_stdio_config["echo"],
+        log_buffer_length=log_config.buffer_length,
+        auth_manager=auth_manager,
+        elicitation_manager=elicitation_manager,
+    ) as server:
+        assert server.server_info.client_status == ClientState.FAILED
+    _, config = echo_tool_streamable_server
+    config["echo"].initial_timeout = 0
+
+    async with McpServer(
+        name="echo",
+        config=config["echo"],
+        log_buffer_length=log_config.buffer_length,
+        auth_manager=auth_manager,
+        elicitation_manager=elicitation_manager,
+    ) as server:
+        assert server.server_info.client_status == ClientState.FAILED
+
+    _, config = echo_tool_sse_server
+    config["echo"].initial_timeout = 0
+
+    async with McpServer(
+        name="echo",
+        config=config["echo"],
+        log_buffer_length=log_config.buffer_length,
+        auth_manager=auth_manager,
+        elicitation_manager=elicitation_manager,
+    ) as server:
+        assert server.server_info.client_status == ClientState.FAILED
+
+
+@pytest.mark.asyncio
+async def test_elicitation_stdio_accept(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test elicitation with stdio transport - user accepts."""
+    elicitation_manager = ElicitationManager()
+
+    async with ToolManager(
+        echo_tool_stdio_config, log_config, elicitation_manager=elicitation_manager
+    ) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        elicit_tool = next((t for t in tools if t.name == "elicit"), None)
+        assert elicit_tool is not None
+
+        async def respond_to_elicitation():
+            # Wait for elicitation request to be created
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if elicitation_manager._pending_requests:
+                    break
+            # Respond to the request
+            request_id = next(iter(elicitation_manager._pending_requests.keys()))
+            await elicitation_manager.respond_to_request(
+                request_id, "accept", {"name": "TestUser", "confirmed": True}
+            )
+
+        # Run tool call and response in parallel
+        response_task = asyncio.create_task(respond_to_elicitation())
+        result = await elicit_tool.ainvoke(
+            ToolCall(
+                name="elicit",
+                id="123",
+                args={"prompt_message": "Please enter your name"},
+                type="tool_call",
+            ),
+        )
+        await response_task
+
+        assert isinstance(result, ToolMessage)
+        content = json.loads(str(result.content))
+        assert content[0]["text"] == "Hello, TestUser! Confirmed: True"
+
+
+@pytest.mark.asyncio
+async def test_elicitation_stdio_decline(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test elicitation with stdio transport - user declines."""
+    elicitation_manager = ElicitationManager()
+
+    async with ToolManager(
+        echo_tool_stdio_config, log_config, elicitation_manager=elicitation_manager
+    ) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        elicit_tool = next((t for t in tools if t.name == "elicit"), None)
+        assert elicit_tool is not None
+
+        async def respond_to_elicitation():
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if elicitation_manager._pending_requests:
+                    break
+            request_id = next(iter(elicitation_manager._pending_requests.keys()))
+            await elicitation_manager.respond_to_request(request_id, "decline", None)
+
+        response_task = asyncio.create_task(respond_to_elicitation())
+        result = await elicit_tool.ainvoke(
+            ToolCall(
+                name="elicit",
+                id="123",
+                args={"prompt_message": "Please enter your name"},
+                type="tool_call",
+            ),
+        )
+        await response_task
+
+        assert isinstance(result, ToolMessage)
+        content = json.loads(str(result.content))
+        assert content[0]["text"] == "User declined to provide input"
+
+
+@pytest.mark.asyncio
+async def test_elicitation_stdio_cancel(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test elicitation with stdio transport - user cancels."""
+    elicitation_manager = ElicitationManager()
+
+    async with ToolManager(
+        echo_tool_stdio_config, log_config, elicitation_manager=elicitation_manager
+    ) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        elicit_tool = next((t for t in tools if t.name == "elicit"), None)
+        assert elicit_tool is not None
+
+        async def respond_to_elicitation():
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if elicitation_manager._pending_requests:
+                    break
+            request_id = next(iter(elicitation_manager._pending_requests.keys()))
+            await elicitation_manager.respond_to_request(request_id, "cancel", None)
+
+        response_task = asyncio.create_task(respond_to_elicitation())
+        result = await elicit_tool.ainvoke(
+            ToolCall(
+                name="elicit",
+                id="123",
+                args={"prompt_message": "Please enter your name"},
+                type="tool_call",
+            ),
+        )
+        await response_task
+
+        assert isinstance(result, ToolMessage)
+        content = json.loads(str(result.content))
+        assert content[0]["text"] == "User cancelled the request"
+
+
+@pytest.mark.asyncio
+async def test_elicitation_sse_accept(
+    echo_tool_sse_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test elicitation with SSE transport - user accepts."""
+    elicitation_manager = ElicitationManager()
+
+    _, configs = echo_tool_sse_server
+    async with (
+        ToolManager(
+            configs, log_config, elicitation_manager=elicitation_manager
+        ) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        elicit_tool = next((t for t in tools if t.name == "elicit"), None)
+        assert elicit_tool is not None
+
+        async def respond_to_elicitation():
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if elicitation_manager._pending_requests:
+                    break
+            request_id = next(iter(elicitation_manager._pending_requests.keys()))
+            await elicitation_manager.respond_to_request(
+                request_id, "accept", {"name": "SSEUser", "confirmed": False}
+            )
+
+        response_task = asyncio.create_task(respond_to_elicitation())
+        result = await elicit_tool.ainvoke(
+            ToolCall(
+                name="elicit",
+                id="123",
+                args={"prompt_message": "Please enter your name"},
+                type="tool_call",
+            ),
+        )
+        await response_task
+
+        assert isinstance(result, ToolMessage)
+        content = json.loads(str(result.content))
+        assert content[0]["text"] == "Hello, SSEUser! Confirmed: False"
+
+
+@pytest.mark.asyncio
+async def test_elicitation_streamable_accept(
+    echo_tool_streamable_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test elicitation with streamable HTTP transport - user accepts."""
+    elicitation_manager = ElicitationManager()
+
+    _, configs = echo_tool_streamable_server
+    async with (
+        ToolManager(
+            configs, log_config, elicitation_manager=elicitation_manager
+        ) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        elicit_tool = next((t for t in tools if t.name == "elicit"), None)
+        assert elicit_tool is not None
+
+        async def respond_to_elicitation():
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if elicitation_manager._pending_requests:
+                    break
+            request_id = next(iter(elicitation_manager._pending_requests.keys()))
+            await elicitation_manager.respond_to_request(
+                request_id, "accept", {"name": "StreamUser", "confirmed": True}
+            )
+
+        response_task = asyncio.create_task(respond_to_elicitation())
+        result = await elicit_tool.ainvoke(
+            ToolCall(
+                name="elicit",
+                id="123",
+                args={"prompt_message": "Please enter your name"},
+                type="tool_call",
+            ),
+        )
+        await response_task
+
+        assert isinstance(result, ToolMessage)
+        content = json.loads(str(result.content))
+        assert content[0]["text"] == "Hello, StreamUser! Confirmed: True"
+
+
+@pytest.mark.asyncio
+async def test_elicitation_local_sse_accept(
+    echo_tool_local_sse_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test elicitation with local SSE transport - user accepts."""
+    elicitation_manager = ElicitationManager()
+
+    async with ToolManager(
+        echo_tool_local_sse_config, log_config, elicitation_manager=elicitation_manager
+    ) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        elicit_tool = next((t for t in tools if t.name == "elicit"), None)
+        assert elicit_tool is not None
+
+        async def respond_to_elicitation():
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if elicitation_manager._pending_requests:
+                    break
+            request_id = next(iter(elicitation_manager._pending_requests.keys()))
+            await elicitation_manager.respond_to_request(
+                request_id, "accept", {"name": "LocalSSEUser", "confirmed": True}
+            )
+
+        response_task = asyncio.create_task(respond_to_elicitation())
+        result = await elicit_tool.ainvoke(
+            ToolCall(
+                name="elicit",
+                id="123",
+                args={"prompt_message": "Please enter your name"},
+                type="tool_call",
+            ),
+        )
+        await response_task
+
+        assert isinstance(result, ToolMessage)
+        content = json.loads(str(result.content))
+        assert content[0]["text"] == "Hello, LocalSSEUser! Confirmed: True"
+
+
+class TestToolManagerPlugin:
+    """Tests for ToolManagerPlugin."""
+
+    def test_register_tools(self) -> None:
+        """Test registering static tools."""
+
+        @tool
+        def my_tool(query: str) -> str:
+            """A test tool."""
+            return f"Result: {query}"
+
+        plugin = ToolManagerPlugin()
+        plugin.register_tools([my_tool])
+
+        tools = plugin.get_tools()
+        assert len(tools) == 1
+        assert tools[0].name == "my_tool"
+
+    def test_register_callback(self) -> None:
+        """Test registering tool callbacks."""
+
+        @tool
+        def callback_tool(x: int) -> int:
+            """A callback tool."""
+            return x * 2
+
+        plugin = ToolManagerPlugin()
+        plugin.register_callback(lambda: [callback_tool], "test_plugin")
+
+        tools = plugin.get_tools()
+        assert len(tools) == 1
+        assert tools[0].name == "callback_tool"
+
+    def test_combined_tools(self) -> None:
+        """Test combining static tools and callbacks."""
+
+        @tool
+        def static_tool(a: str) -> str:
+            """Static tool."""
+            return a
+
+        @tool
+        def dynamic_tool(b: str) -> str:
+            """Dynamic tool."""
+            return b
+
+        plugin = ToolManagerPlugin()
+        plugin.register_tools([static_tool])
+        plugin.register_callback(lambda: [dynamic_tool], "dynamic_plugin")
+
+        tools = plugin.get_tools()
+        assert len(tools) == 2
+        tool_names = [t.name for t in tools]
+        assert "static_tool" in tool_names
+        assert "dynamic_tool" in tool_names
+
+    def test_clear(self) -> None:
+        """Test clearing all tools."""
+
+        @tool
+        def temp_tool(x: str) -> str:
+            """Temporary tool."""
+            return x
+
+        plugin = ToolManagerPlugin()
+        plugin.register_tools([temp_tool])
+        assert len(plugin.get_tools()) == 1
+
+        plugin.clear()
+        assert len(plugin.get_tools()) == 0
+
+    def test_tool_manager_with_plugin(
+        self,
+        log_config: LogConfig,
+    ) -> None:
+        """Test ToolManager integration with plugin."""
+
+        @tool
+        def plugin_tool(msg: str) -> str:
+            """A plugin tool."""
+            return f"Plugin: {msg}"
+
+        plugin = ToolManagerPlugin()
+        plugin.register_tools([plugin_tool])
+
+        # Test without context manager (just initialization)
+        tool_manager = ToolManager(
+            configs={},
+            log_config=log_config,
+            tool_plugin=plugin,
+        )
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 1
+        assert tools[0].name == "plugin_tool"
+
+
+@pytest.mark.asyncio
+async def test_verify(
+    echo_https_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Some LLM set the tool call argument in kwargs."""
+    config = echo_https_server[1]
+    async with ToolManager(config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 0
+
+    config["echo"].verify = False
+    async with ToolManager(config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) > 0
+
+    config["echo"].verify = True
+    async with ToolManager(config, log_config) as tool_manager:
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        assert len(tools) == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_streamable(
+    echo_tool_streamable_server: tuple[int, dict[str, ServerConfig]],
+    log_config: LogConfig,
+) -> None:
+    """Test cancel with stremable transport."""
+    _, configs = echo_tool_streamable_server
+
+    runnable_config = {
+        "configurable": {
+            "thread_id": 100,
+            "user_id": "lala",
+        },
+        "recursion_limit": 102,
+    }
+    async with (
+        ToolManager(configs, log_config) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        echo_tool = next((t for t in tools if t.name == "echo"), None)
+        assert echo_tool is not None
+
+        for _ in range(10):
+            task = asyncio.create_task(
+                echo_tool.ainvoke(
+                    ToolCall(
+                        name="echo",
+                        id="123",
+                        args={"message": "hihi", "delay_ms": 2000},
+                        type="tool_call",
+                    ),
+                    config=runnable_config,  # type: ignore
+                )
+            )
+            await asyncio.sleep(0.1)
+            task.cancel()
+
+            result = await task
+
+            assert isinstance(result, ToolMessage)
+            content = json.loads(str(result.content))
+            assert "<user_aborted>" in content[0]["text"]
+
+
+@pytest.mark.asyncio
+async def test_cancel_stdio(
+    echo_tool_stdio_config: dict[str, ServerConfig],
+    log_config: LogConfig,
+) -> None:
+    """Test cancel with stdio transport."""
+    runnable_config = {
+        "configurable": {
+            "thread_id": 100,
+            "user_id": "lala",
+        },
+        "recursion_limit": 102,
+    }
+    async with (
+        ToolManager(echo_tool_stdio_config, log_config) as tool_manager,
+    ):
+        await tool_manager.initialized_event.wait()
+        tools = tool_manager.langchain_tools()
+        echo_tool = next((t for t in tools if t.name == "echo"), None)
+        assert echo_tool is not None
+
+        for _ in range(2):
+            task = asyncio.create_task(
+                echo_tool.ainvoke(
+                    ToolCall(
+                        name="echo",
+                        id="123",
+                        args={"message": "hihi", "delay_ms": 2000},
+                        type="tool_call",
+                    ),
+                    config=runnable_config,  # type: ignore
+                )
+            )
+            await asyncio.sleep(0.1)
+            task.cancel()
+
+            result = await task
+
+            assert isinstance(result, ToolMessage)
+            content = json.loads(str(result.content))
+            assert "<user_aborted>" in content[0]["text"]
+            await asyncio.sleep(5)

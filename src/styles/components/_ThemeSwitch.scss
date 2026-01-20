@@ -1,0 +1,22 @@
+@use "../variables" as *;
+
+.tabs-container.theme-switch-root {
+  display: flex;
+  align-items: center;
+  border-radius: 30px;
+  padding: 1px;
+  border: 1px solid var(--stroke-gray-weak);
+  background: var(--bg-gray-medium);
+
+  .tabs-item,
+  .tabs-item-slider {
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: var(--text-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
