@@ -31,6 +31,7 @@ import require$$0$6, { execSync } from "child_process";
 import electronDl, { download, CancelError } from "electron-dl";
 import require$$0$5 from "fs";
 import require$$0$7 from "util";
+import { createServer } from "node:http";
 import require$$1$3 from "fs/promises";
 import { Anthropic } from "@anthropic-ai/sdk";
 import { Ollama } from "ollama";
@@ -9803,6 +9804,54 @@ function requireMain() {
 }
 var mainExports = requireMain();
 const log = /* @__PURE__ */ getDefaultExportFromCjs(mainExports);
+const PORT = 19999;
+function startLocalServer(win2) {
+  const server = createServer(async (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    if (req.url === "/chat" && req.method === "POST") {
+      let body = "";
+      req.on("data", (chunk) => body += chunk.toString());
+      req.on("end", async () => {
+        try {
+          const { message } = JSON.parse(body);
+          console.log(`[Server] Received external message: ${message}`);
+          const reply = await requestToRenderer(win2, message);
+          console.log;
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ reply }));
+        } catch (e) {
+          console.error(e);
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: e.message || "Internal Error" }));
+        }
+      });
+    } else {
+      res.writeHead(404);
+      res.end("Not Found");
+    }
+  });
+  server.listen(PORT, "127.0.0.1", () => {
+    console.log(`Dive Communication Server running on http://127.0.0.1:${PORT}`);
+  });
+  return server;
+}
+function requestToRenderer(win2, message) {
+  return new Promise((resolve) => {
+    win2.webContents.send("external-chat-request", message);
+    ipcMain.once("external-chat-response", (_event, reply) => {
+      resolve(reply);
+    });
+    setTimeout(() => {
+    }, 6e4);
+  });
+}
 log.initialize();
 log.transports.file.resolvePathFn = () => path.join(logDir, "main-electron.log");
 Object.assign(console, log.functions);
@@ -9893,6 +9942,7 @@ async function createWindow() {
     win.setMenu(null);
     win.loadFile(indexHtml);
   }
+  startLocalServer(win);
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
