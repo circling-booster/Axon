@@ -1,5 +1,17 @@
-﻿# 1. 의존성 (자동 복원 가능)
+﻿#별도제외 필요시조정
+src-tauri/
+src/styles/
+temp/
+test/
+
+# 테스트 관련 - 필요에 따라 조정
+#mcp-host/tests/ 
+
+
+# 1. 의존성 (자동 복원 가능)
 node_modules/
+**/node_modules/
+**/.venv/
 mcp-host/.venv/
 packages/*/node_modules/
 packages/core-js/.cargo/
@@ -7,16 +19,27 @@ packages/core-js/.cargo/
 # 2. 빌드 아티팩트 (재생성 가능)
 dist/
 dist-electron/
+release/
+build/
 build/Release
 target/
+prebuilt/
 **/__pycache__/
 *.pyc
 *.pyo
+*.pyd
 .tsbuildinfo
 *.o
 *.a
+*.map
 
-# 3. 런타임 캐시
+# 3. Lock 파일 (자동 생성, 용량 큼)
+package-lock.json
+Cargo.lock
+uv.lock
+*.lock
+
+# 4. 런타임 캐시
 .cache/
 .parcel-cache/
 .rpt2_cache/
@@ -26,7 +49,7 @@ target/
 .nyc_output/
 coverage/
 
-# 4. 로그 및 환경
+# 5. 로그 및 환경
 *.log
 logs/
 npm-debug.log*
@@ -40,44 +63,61 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
-# 5. 런타임 설정 (민감 정보 & 상태)
+# 6. 런타임 설정 (민감 정보 & 상태)
 .config/db.sqlite
 .config/*.json
 .config/customrules/
 
-# 6. IDE 캐시
+# 7. IDE 캐시
 .vscode/.debug.script.mjs
 .vscode-test
 
-# 7. 대용량 정적 자산 (참조 불필요)
-docs/*.gif
-docs/*.jpg
+# 8. 대용량 정적 자산 및 바이너리
+**/*.gif
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/icons/
+*.icns
+*.ico
+*.dll
+*.exe
+*.pyd
+build/icon.*
 public/image/
 resources/
+docs/
 
-# 8. Yarn v2 캐시
+# 9. Yarn v2 캐시
 .yarn/cache/
 .yarn/unplugged/
 .pnp.*
 
-# 9. 테스트/임시
+# 10. 테스트/임시
 .temp/
 .dynamodb/
 .fusebox/
 .tern-port
 
-# 10. Node.js 런타임
+# 11. Node.js 런타임
 pids/
 *.pid
 *.seed
 *.pid.lock
 lib-cov/
 
-
-# --- Build & Dependency Output (빌드 산출물 및 다운로드된 바이너리) ---
-# electron-builder 및 vite 빌드 결과물
-dist-electron/
-release/
-
-# 스크립트(download:windows-bin)를 통해 다운로드된 외부 바이너리 폴더
+# 12. 스크립트로 다운로드된 외부 바이너리
 bin/
+
+# 13. OS 생성 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 14. Python 특정 파일
+*.pyd
+*.dll
+*.chm
+*.gz
+
+
