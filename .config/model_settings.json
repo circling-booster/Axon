@@ -1,0 +1,10 @@
+{
+  "groups": [],
+  "common": {
+    "configuration": {
+      "temperature": 0,
+      "topP": 0
+    }
+  },
+  "disableDiveSystemPrompt": false
+}

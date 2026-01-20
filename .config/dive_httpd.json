@@ -1,0 +1,14 @@
+{
+  "db": {
+    "uri": "sqlite:///C:\\Users\\sungb\\Documents\\GitHub\\Axon\\.config\\db.sqlite",
+    "pool_size": 5,
+    "pool_recycle": 60,
+    "max_overflow": 10,
+    "echo": false,
+    "pool_pre_ping": true,
+    "migrate": true
+  },
+  "checkpointer": {
+    "uri": "sqlite:///C:\\Users\\sungb\\Documents\\GitHub\\Axon\\.config\\db.sqlite"
+  }
+}

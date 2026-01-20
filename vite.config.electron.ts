@@ -34,56 +34,14 @@ export default defineConfig(({ command }) => {
         "@": path.join(__dirname, "src"),
         "@codemirror/state": path.resolve(
           __dirname,
-          "./node_modules/@codemirror/state/dist/index.js"
-        ),
-        "@codemirror/view": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/view/dist/index.js"
-        ),
-        "@codemirror/lint": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/lint/dist/index.js"
-        ),
-        "@codemirror/lang-json": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/lang-json/dist/index.js"
-        ),
-        "@codemirror/linter": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/linter/dist/index.js"
-        ),
-        "@codemirror/theme-one-dark": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/theme-one-dark/dist/index.js"
-        ),
-        "@codemirror/autocomplete": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/autocomplete/dist/index.js"
-        ),
-        "@codemirror/commands": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/commands/dist/index.js"
-        ),
-        "@codemirror/language": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/language/dist/index.js"
-        ),
-        "@codemirror/search": path.resolve(
-          __dirname,
-          "./node_modules/@codemirror/search/dist/index.js"
-        ),
-        "@uiw/react-codemirror": path.resolve(
-          __dirname,
-          "node_modules/@uiw/react-codemirror/esm/index.js",
-        ),
-        "@uiw/codemirror-extensions-basic-setup": path.resolve(
-          __dirname,
-          "node_modules/@uiw/codemirror-extensions-basic-setup/esm/index.js"
+          "node_modules/@codemirror/state/dist/index.cjs"
         ),
       },
     },
     plugins: [
-      react({babel: { plugins: [jotaiDebugLabel, jotaiReactRefresh] }}),
+      react({
+        babel: { plugins: [jotaiDebugLabel, jotaiReactRefresh] },
+      }),
       electron({
         main: {
           // Shortcut of `build.lib.entry`
@@ -92,20 +50,25 @@ export default defineConfig(({ command }) => {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */"[startup] Electron App")
             } else {
-              args.startup(["."])
+              args.startup()
             }
           },
           vite: {
+            define: {
+              "import.meta.env.MCP_HOST_COMMIT_HASH": JSON.stringify(getMcpHostCommitHash()),
+            },
             build: {
               sourcemap,
               minify: isBuild,
               outDir: "dist-electron/main",
               rollupOptions: {
-                external: Object.keys("dependencies" in pkg ? pkg.dependencies : {}),
+                // [수정됨] bufferutil과 utf-8-validate를 명시적으로 external에 추가
+                external: [
+                  ...Object.keys("dependencies" in pkg ? pkg.dependencies : {}),
+                  "bufferutil",
+                  "utf-8-validate"
+                ],
               },
-            },
-            define: {
-              "process.env.MCP_HOST_COMMIT_HASH": JSON.stringify(getMcpHostCommitHash()),
             },
             server: {
               watch: {
@@ -147,10 +110,13 @@ export default defineConfig(({ command }) => {
         port: +url.port,
         watch: {
           ignored: ["**/mcp-host/**"],
-          exclude: ["**/mcp-host/**"],
         },
       }
-    })() : undefined,
+    })() : {
+      watch: {
+        ignored: ["**/mcp-host/**"],
+      }
+    },
     clearScreen: false,
   }
 })
