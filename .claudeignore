@@ -1,0 +1,74 @@
+﻿# 1. 의존성 (자동 복원 가능)
+node_modules/
+mcp-host/.venv/
+packages/*/node_modules/
+packages/core-js/.cargo/
+
+# 2. 빌드 아티팩트 (재생성 가능)
+dist/
+dist-electron/
+build/Release
+target/
+**/__pycache__/
+*.pyc
+*.pyo
+.tsbuildinfo
+*.o
+*.a
+
+# 3. 런타임 캐시
+.cache/
+.parcel-cache/
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.nyc_output/
+coverage/
+
+# 4. 로그 및 환경
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# 5. 런타임 설정 (민감 정보 & 상태)
+.config/db.sqlite
+.config/*.json
+.config/customrules/
+
+# 6. IDE 캐시
+.vscode/.debug.script.mjs
+.vscode-test
+
+# 7. 대용량 정적 자산 (참조 불필요)
+docs/*.gif
+docs/*.jpg
+public/image/
+resources/
+
+# 8. Yarn v2 캐시
+.yarn/cache/
+.yarn/unplugged/
+.pnp.*
+
+# 9. 테스트/임시
+.temp/
+.dynamodb/
+.fusebox/
+.tern-port
+
+# 10. Node.js 런타임
+pids/
+*.pid
+*.seed
+*.pid.lock
+lib-cov/
