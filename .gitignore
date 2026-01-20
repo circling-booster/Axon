@@ -137,3 +137,11 @@ dist
 
 #etc
 .config/
+
+# --- Build & Dependency Output (빌드 산출물 및 다운로드된 바이너리) ---
+# electron-builder 및 vite 빌드 결과물
+dist-electron/
+release/
+
+# 스크립트(download:windows-bin)를 통해 다운로드된 외부 바이너리 폴더
+bin/

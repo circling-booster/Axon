@@ -61,7 +61,7 @@ export function setNodePath() {
 export function getLatestVersion(): Promise<string> {
   return fetch("https://api.github.com/repos/OpenAgentPlatform/Dive/releases/latest")
     .then(res => res.json())
-    .then(data => data.tag_name.slice(1))
+    .then((data) => (data as { tag_name: string }).tag_name.slice(1))
 }
 
 export function compareFiles(filePath1: string, filePath2: string): boolean {
