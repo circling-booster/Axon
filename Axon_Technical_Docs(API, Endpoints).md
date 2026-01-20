@@ -1,37 +1,8 @@
 # **Axon (Dive) 기술 문서 v4: 아키텍처 및 API 명세**
 
-이 문서는 Axon (코드명 Dive) 프로젝트의 소스 코드(src-tauri, mcp-host 0df88c0 기준)를 정밀 분석하여 작성된 최신 기술 문서입니다. 실제 구현된 엔드포인트, 데이터베이스 스키마, 그리고 MCP(Model Context Protocol) 호스트로서의 역할을 정확하게 기술합니다.
+이 문서는 Axon (Dive을 포크함) 프로젝트의 소스 코드를 분석하여 작성된 기술 문서입니다. 실제 구현된 엔드포인트, 데이터베이스 스키마, 그리고 MCP(Model Context Protocol) 호스트로서의 역할을 정확하게 기술합니다.
 
 ## **1\. 아키텍처 개요 (Architecture Overview)**
-
-Axon은 **Tauri**를 기반으로 한 하이브리드 데스크톱 애플리케이션으로, 로컬 LLM 및 MCP 서버와의 통신을 위해 Python 사이드카(Sidecar) 패턴을 사용합니다.
-
-### **1.1 시스템 구성도**
-
-graph TD  
-    User\[사용자\] \--\> UI\[React Frontend (Vite)\]  
-      
-    subgraph "Tauri Process (Rust)"  
-        UI \-- IPC / Commands \--\> Core\[Rust Core Process\]  
-        Core \-- "관리 (Spawn/Kill)" \--\> Sidecar  
-    end  
-      
-    subgraph "Sidecar (Python Backend)"  
-        Sidecar\[FastAPI Server (mcp-host)\]  
-        UI \-- "HTTP Requests (http://localhost:{port})" \--\> Sidecar  
-          
-        Sidecar \--\> Router\[API Routers\]  
-        Router \--\> Logic\[Chat Processor & Agent Logic\]  
-        Logic \--\> DB\[(SQLite / PostgreSQL)\]  
-        Logic \--\> MCPI\[MCP Interface\]  
-    end  
-      
-    MCPI \-- "MCP Protocol (Stdio/SSE)" \--\> MCPServer\[External MCP Servers\]  
-    Logic \-- "API Calls" \--\> LLM\[LLM Provider (OpenAI, Ollama, etc.)\]
-
-* **Frontend**: React \+ Vite \+ TailwindCSS. 사용자는 웹뷰를 통해 상호작용합니다.  
-* **Core (Rust)**: 창 관리, 파일 시스템 접근, Python 사이드카 프로세스 수명 주기를 관리합니다.  
-* **Backend (Python)**: dive\_mcp\_host 패키지로 구성된 FastAPI 서버입니다. LLM 컨텍스트 관리, 프롬프트 엔지니어링, DB 입출력, **MCP 클라이언트 기능**을 수행합니다.
 
 ## **2\. API 엔드포인트 상세 (API Endpoints)**
 
