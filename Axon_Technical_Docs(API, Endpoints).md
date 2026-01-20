@@ -1,6 +1,6 @@
 # **Axon (Dive) 기술 문서 v4: 아키텍처 및 API 명세**
 
-이 문서는 Axon (Dive을 포크함) 프로젝트의 소스 코드를 분석하여 작성된 기술 문서입니다. 실제 구현된 엔드포인트, 데이터베이스 스키마, 그리고 MCP(Model Context Protocol) 호스트로서의 역할을 정확하게 기술합니다.
+이 문서는 Axon (Dive을 포크함) 프로젝트의 소스 코드를 분석하여 작성된 기술 문서입니다. Axon 이 채택한 **"API 프록시(Proxy) 방식"**은 Electron 메인 프로세스가 파이썬 백엔드와 직접 통신하는 구조입니다. folk/proxyServer.ts 파일로 구현되었습니다. 이를 위해 기존의 "electron/main/server.ts" 및 "electron/main/index.ts" 를 수정하였습니다. 포트 번호는 19999 로 할당합니다. 실제 구현된 엔드포인트, 데이터베이스 스키마, 그리고 MCP(Model Context Protocol) 호스트로서의 역할을 정확하게 기술합니다.
 
 ## **1\. 아키텍처 개요 (Architecture Overview)**
 
