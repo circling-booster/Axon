@@ -172,11 +172,3 @@ Axon은 **MCP Host** 역할을 수행합니다. 사용자가 설정한 MCP Serve
 2. **검색 (Discovery)**: 연결된 서버로부터 ListTools, ListResources, ListPrompts를 호출하여 사용 가능한 기능을 파악합니다.  
 3. **실행 (Execution)**: 사용자의 질문이 특정 도구를 필요로 한다고 LLM이 판단하면, Axon(Host)이 해당 MCP 서버에 CallTool 요청을 보냅니다.  
 4. **권한 관리**: 민감한 도구 실행 전 사용자에게 확인 팝업(PopupConfirm.tsx)을 띄워 승인을 받습니다.
-
-### **내장 플러그인 (Built-in Plugins)**
-
-Axon은 외부 MCP 서버 외에도 자체적인 기능을 플러그인 형태로 제공합니다.
-
-* **mcp\_installer\_plugin**: 새로운 MCP 서버를 설치하거나 설정하는 도구  
-  * 제공 도구: bash, fetch (HTTP 요청), file\_ops (파일 조작), mcp\_server (설정 관리)  
-* **oap\_plugin**: OpenAI API 호환 서버 관리 플

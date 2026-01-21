@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Axon Web Connect",
+  "version": "1.0",
+  "description": "웹페이지에서 Axon(Dive) 로컬 서버와 대화하세요.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:19999/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": []
+    }
+  ],
+  "action": {
+    "default_title": "Open Axon Chat"
+  }
+}
