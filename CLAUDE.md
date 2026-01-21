@@ -89,8 +89,9 @@ In dev mode, configuration files are stored in `.config/` (not user home):
 
 ### Documentation
 
+- Axon-specific documentation: See `README.md` in this repo
+- DIVE-specific documentation: See `README_Dive.md` in this repo
 - Official Dive documentation: https://github.com/OpenAgentPlatform/Dive
-- Axon-specific documentation: See `Axon_Technical_Docs(API, Endpoints).md` in this repo
 - This document: `CLAUDE.md`
 
 ## Important Notes for Claude Code
