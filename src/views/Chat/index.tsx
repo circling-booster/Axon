@@ -20,7 +20,7 @@ import { forceRestartMcpConfigAtom, loadToolsAtom, Tool, toolsAtom } from "../..
 import "../../styles/pages/_Chat.scss"
 import { createPortal } from "react-dom"
 // Axon Audio Mixer
-import { AudioWatcher } from "../../../folk/audio"
+import { AudioWatcher } from "../../../folk/ui/audio"
 
 interface ToolCall {
   name: string

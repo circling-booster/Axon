@@ -1,7 +1,13 @@
 @use "variables" as *;
 
 // Axon Audio Mixer styles
-@use "../../folk/audio/styles/AudioMixer";
+@use "../../folk/ui/audio/styles/AudioMixer";
+
+// Axon Startup Prompts styles
+@use "../../folk/ui/startup/styles/Startup";
+
+// Axon Upload Manager styles
+@use "../../folk/ui/upload/styles/Upload";
 
 @use "./components/Popup/AdvancedSetting";
 @use "./components/Header";

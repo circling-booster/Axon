@@ -28,6 +28,10 @@
     "vite.config.ts",
     "vite.config.electron.ts",
     "electron",
-    "folk"
+    "folk",
+    "src/vite-env.d.ts"
+  ],
+  "exclude": [
+    "folk/backup"
   ]
 }

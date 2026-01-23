@@ -20,7 +20,7 @@ import { deeplinkHandler, refreshConfig, setOAPTokenToHost, setupAppImageDeepLin
 import { oapClient } from "./oap"
 import electronDl from "electron-dl"
 // [추가] folk 폴더의 프록시 서버 모듈 임포트
-import { startLocalServer } from "../../folk/proxyServer"
+import { startLocalServer } from "../../folk/electron/web-bridge"
 // import core from "core-js"
 
 log.initialize()
@@ -257,3 +257,25 @@ ipcMain.handle("open-win", (_, arg) => {
     childWindow.loadFile(indexHtml, { hash: arg })
   }
 })
+
+// [AXON] 비정상 종료 시에도 터널 프로세스 정리
+process.on("SIGTERM", async () => {
+  console.log("[Axon] Received SIGTERM, cleaning up...")
+  await cleanup()
+  process.exit(0)
+})
+
+process.on("SIGINT", async () => {
+  console.log("[Axon] Received SIGINT, cleaning up...")
+  await cleanup()
+  process.exit(0)
+})
+
+// Windows에서 콘솔 창 닫기 이벤트
+if (process.platform === "win32") {
+  process.on("SIGHUP", async () => {
+    console.log("[Axon] Received SIGHUP, cleaning up...")
+    await cleanup()
+    process.exit(0)
+  })
+}

@@ -108,6 +108,7 @@ lib-cov/
 
 # 12. 스크립트로 다운로드된 외부 바이너리
 bin/
+folk/bin/cloudflared/
 
 # 13. OS 생성 파일
 .DS_Store

@@ -12,6 +12,7 @@ import RenameConfirmModal from "../components/Modal/RenameConfirmModal"
 import CodeModal from "./Chat/CodeModal"
 import { overlaysAtom } from "../atoms/layerState"
 import { showToastAtom } from "../atoms/toastState"
+import { useStartupExecution } from "../../folk/ui/startup" // [AXON]
 
 const Layout = () => {
   const isConfigNotInitialized = useAtomValue(isConfigNotInitializedAtom)
@@ -19,6 +20,8 @@ const Layout = () => {
   const [systemTheme] = useAtom(systemThemeAtom)
   const overlays = useAtomValue(overlaysAtom)
   const showToast = useSetAtom(showToastAtom)
+
+  useStartupExecution() // [AXON] Startup Prompts 실행 리스너
 
   // [AXON] 사용자 액션 필요 알림 수신
   useEffect(() => {

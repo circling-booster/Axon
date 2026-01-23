@@ -12,6 +12,12 @@ declare global {
   interface Window {
     // expose in the `electron/preload/index.ts`
     ipcRenderer: import("electron").IpcRenderer & {
+      // Generic IPC methods (for Axon and other dynamic channels)
+      invoke: (channel: string, ...args: any[]) => Promise<any>
+      on: (channel: string, listener: (event: any, ...args: any[]) => void) => import("electron").IpcRenderer
+      off: (channel: string, listener: (...args: any[]) => void) => import("electron").IpcRenderer
+      send: (channel: string, ...args: any[]) => void
+
       port: () => Promise<number>
       getResourcesPath: (p: string) => Promise<string>
       openScriptsDir: () => Promise<void>

@@ -1,0 +1,765 @@
+/**
+ * Axon Audio Mixer - Styles
+ * Floating audio mixer panel with track controls
+ */
+
+// ============================================================================
+// Variables
+// ============================================================================
+
+$mixer-bg: var(--color-bg-secondary, #1e1e1e);
+$mixer-border: var(--color-border, #333);
+$mixer-text: var(--color-text-primary, #fff);
+$mixer-text-secondary: var(--color-text-secondary, #999);
+$mixer-accent: var(--color-accent, #4a9eff);
+$mixer-accent-hover: var(--color-accent-hover, #3a8eef);
+$mixer-danger: var(--color-danger, #ff4444);
+$mixer-muted: var(--color-muted, #666);
+$mixer-solo: var(--color-warning, #ffaa00);
+
+$track-bg: var(--color-bg-tertiary, #2a2a2a);
+$track-progress-bg: var(--color-bg-primary, #1a1a1a);
+$track-progress-fill: var(--color-accent, #4a9eff);
+
+$btn-bg: var(--color-bg-tertiary, #333);
+$btn-hover: var(--color-bg-hover, #444);
+$btn-active: var(--color-accent, #4a9eff);
+
+// ============================================================================
+// Main Container
+// ============================================================================
+
+.audio-mixer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  max-height: 80vh;
+  background: $mixer-bg;
+  border: 1px solid $mixer-border;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 13px;
+  color: $mixer-text;
+
+  &.minimized {
+    width: auto;
+    min-width: 200px;
+    max-height: none;
+  }
+}
+
+// ============================================================================
+// Master Controls
+// ============================================================================
+
+.audio-mixer-master-controls {
+  padding: 12px;
+  border-bottom: 1px solid $mixer-border;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent);
+}
+
+.audio-mixer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.audio-mixer-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.audio-mixer-window-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.audio-mixer-window-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: $btn-bg;
+  color: $mixer-text-secondary;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $btn-hover;
+    color: $mixer-text;
+  }
+
+  &.close-btn:hover {
+    background: $mixer-danger;
+    color: white;
+  }
+}
+
+.audio-mixer-playback-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.audio-mixer-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  background: $btn-bg;
+  color: $mixer-text;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $btn-hover;
+  }
+
+  &.play-pause-btn {
+    width: 48px;
+    background: $mixer-accent;
+
+    &:hover {
+      background: $mixer-accent-hover;
+    }
+
+    &.playing {
+      background: $mixer-muted;
+    }
+  }
+}
+
+.audio-mixer-master-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-mixer-master-volume-label {
+  font-size: 12px;
+  color: $mixer-text-secondary;
+  min-width: 40px;
+}
+
+.audio-mixer-master-volume-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: $track-progress-bg;
+  border-radius: 2px;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: $mixer-accent;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 50%;
+    background: $mixer-accent;
+    cursor: pointer;
+  }
+}
+
+.audio-mixer-master-volume-value {
+  font-size: 11px;
+  color: $mixer-text-secondary;
+  min-width: 35px;
+  text-align: right;
+}
+
+// ============================================================================
+// Track List
+// ============================================================================
+
+.audio-mixer-tracks {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $mixer-border;
+    border-radius: 3px;
+  }
+}
+
+// ============================================================================
+// Individual Track
+// ============================================================================
+
+.audio-track {
+  background: $track-bg;
+  border-radius: 6px;
+  padding: 10px;
+  transition: all 0.15s ease;
+
+  &.muted {
+    opacity: 0.6;
+  }
+
+  &.solo {
+    box-shadow: 0 0 0 2px $mixer-solo;
+  }
+}
+
+.audio-track-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.audio-track-label {
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.audio-track-time {
+  font-size: 10px;
+  color: $mixer-text-secondary;
+  font-family: monospace;
+}
+
+.audio-track-error {
+  font-size: 11px;
+  color: $mixer-danger;
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  background: rgba(255, 68, 68, 0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-track-retry-btn,
+.audio-track-link-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: $mixer-text;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.audio-track-retry-btn:hover {
+  background: $mixer-accent;
+}
+
+.audio-track-link-btn:hover {
+  background: $mixer-solo;
+  color: black;
+}
+
+.audio-track-progress {
+  height: 4px;
+  background: $track-progress-bg;
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.audio-track-progress-fill {
+  height: 100%;
+  background: $track-progress-fill;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.audio-track-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-track-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: $btn-bg;
+  color: $mixer-text-secondary;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $btn-hover;
+    color: $mixer-text;
+  }
+
+  &.audio-track-mute-btn.active {
+    background: $mixer-danger;
+    color: white;
+  }
+
+  &.audio-track-solo-btn.active {
+    background: $mixer-solo;
+    color: black;
+  }
+}
+
+.audio-track-volume-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: $track-progress-bg;
+  border-radius: 2px;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: $mixer-text;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border: none;
+    border-radius: 50%;
+    background: $mixer-text;
+    cursor: pointer;
+  }
+}
+
+.audio-track-volume-value {
+  font-size: 10px;
+  color: $mixer-text-secondary;
+  min-width: 30px;
+  text-align: right;
+}
+
+// ============================================================================
+// Footer
+// ============================================================================
+
+.audio-mixer-footer {
+  padding: 8px 12px;
+  border-top: 1px solid $mixer-border;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.audio-mixer-mcp-tool {
+  font-size: 10px;
+  color: $mixer-text-secondary;
+  font-style: italic;
+}
+
+// ============================================================================
+// Light Theme Support
+// ============================================================================
+
+:root[data-theme="light"],
+[data-theme="light"] {
+  .audio-mixer {
+    --color-bg-secondary: #f5f5f5;
+    --color-bg-tertiary: #e8e8e8;
+    --color-bg-primary: #ddd;
+    --color-bg-hover: #d0d0d0;
+    --color-border: #ccc;
+    --color-text-primary: #333;
+    --color-text-secondary: #666;
+    --color-accent: #2563eb;
+    --color-accent-hover: #1d4ed8;
+    --color-danger: #dc2626;
+    --color-muted: #9ca3af;
+    --color-warning: #f59e0b;
+  }
+}
+
+// ============================================================================
+// Settings Panel
+// ============================================================================
+
+.audio-settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-settings-panel {
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: $mixer-bg;
+  border: 1px solid $mixer-border;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.audio-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid $mixer-border;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent);
+
+  h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: $mixer-text;
+  }
+}
+
+.audio-settings-close-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: $mixer-text-secondary;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $mixer-danger;
+    color: white;
+  }
+}
+
+.audio-settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.audio-settings-section {
+  margin-bottom: 20px;
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: $mixer-text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.audio-settings-hint {
+  font-size: 11px;
+  color: $mixer-text-secondary;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.audio-settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  span {
+    font-size: 13px;
+    color: $mixer-text;
+  }
+}
+
+.audio-settings-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  input[type="range"] {
+    width: 100px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: $track-progress-bg;
+    border-radius: 2px;
+    cursor: pointer;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: $mixer-accent;
+      cursor: pointer;
+    }
+  }
+
+  span {
+    font-size: 11px;
+    color: $mixer-text-secondary;
+    min-width: 35px;
+    text-align: right;
+  }
+}
+
+.audio-settings-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+}
+
+.audio-settings-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: $mixer-muted;
+  transition: 0.2s;
+  border-radius: 10px;
+
+  &::before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+}
+
+input:checked + .audio-settings-toggle-slider {
+  background-color: $mixer-accent;
+}
+
+input:checked + .audio-settings-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.audio-settings-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $mixer-border;
+    border-radius: 2px;
+  }
+}
+
+.audio-settings-tool-item {
+  background: $track-bg;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.audio-settings-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio-settings-tool-name {
+  flex: 1;
+  font-size: 12px;
+  font-family: monospace;
+  color: $mixer-text;
+}
+
+.audio-settings-remove-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: $mixer-text-secondary;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: $mixer-danger;
+    color: white;
+  }
+}
+
+.audio-settings-tool-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 46px;
+
+  span {
+    font-size: 11px;
+    color: $mixer-text-secondary;
+
+    &:last-child {
+      min-width: 35px;
+      text-align: right;
+    }
+  }
+
+  input[type="range"] {
+    flex: 1;
+    height: 3px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: $track-progress-bg;
+    border-radius: 2px;
+    cursor: pointer;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: $mixer-accent;
+      cursor: pointer;
+    }
+  }
+}
+
+.audio-settings-add-tool {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+
+  input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid $mixer-border;
+    border-radius: 4px;
+    background: $track-bg;
+    color: $mixer-text;
+    font-size: 12px;
+    font-family: monospace;
+
+    &::placeholder {
+      color: $mixer-text-secondary;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: $mixer-accent;
+    }
+  }
+
+  button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background: $mixer-accent;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: $mixer-accent-hover;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ============================================================================
+// Responsive
+// ============================================================================
+
+@media (max-width: 480px) {
+  .audio-mixer {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+
+  .audio-settings-panel {
+    width: 95vw;
+  }
+}

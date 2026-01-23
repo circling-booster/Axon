@@ -1,0 +1,537 @@
+/**
+ * Startup Prompts Styles
+ */
+
+.startup-settings {
+  padding: 16px;
+  max-width: 800px;
+}
+
+.startup-loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.startup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.startup-title {
+  h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.startup-description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.startup-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-tertiary);
+    transition: 0.3s;
+    border-radius: 24px;
+
+    &::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+  }
+
+  input:checked + .toggle-slider {
+    background-color: var(--primary);
+  }
+
+  input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+  }
+}
+
+.startup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.startup-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  input[type="number"] {
+    width: 100px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  label {
+    margin-right: 8px;
+  }
+}
+
+// Prompt List
+.prompt-list {
+  margin-bottom: 24px;
+}
+
+.prompt-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+.add-prompt-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary);
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.prompt-list-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.prompt-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prompt-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  transition: opacity 0.2s;
+
+  &.disabled {
+    opacity: 0.5;
+  }
+}
+
+.prompt-drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  padding: 4px;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.prompt-toggle {
+  .toggle-slider.small {
+    width: 32px;
+    height: 18px;
+
+    &::before {
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      bottom: 2px;
+    }
+  }
+
+  input:checked + .toggle-slider.small::before {
+    transform: translateX(14px);
+  }
+}
+
+.prompt-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.prompt-name {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.prompt-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.prompt-btn {
+  padding: 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--text);
+  }
+
+  &.delete:hover {
+    color: var(--error);
+  }
+}
+
+// Prompt Editor Modal
+.prompt-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.prompt-editor {
+  width: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: var(--bg);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .close-btn {
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--bg-secondary);
+      color: var(--text);
+    }
+  }
+}
+
+.prompt-editor-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.form-group {
+  margin-bottom: 16px;
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: 14px;
+    resize: vertical;
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+  }
+
+  &.inline {
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+}
+
+.prompt-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-cancel,
+.btn-save {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text);
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.btn-save {
+  background: var(--primary);
+  color: white;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Execution Progress
+.execution-progress {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.execution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+.execution-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.run-btn,
+.cancel-btn,
+.reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.run-btn {
+  background: var(--primary);
+  color: white;
+}
+
+.cancel-btn {
+  background: var(--error);
+  color: white;
+}
+
+.reset-btn {
+  background: var(--bg-tertiary);
+  color: var(--text);
+}
+
+.execution-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.running {
+    background: var(--warning-bg);
+    color: var(--warning);
+  }
+
+  &.completed {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+
+  &.error {
+    background: var(--error-bg);
+    color: var(--error);
+  }
+
+  &.cancelled {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+  }
+}
+
+.progress-info {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.execution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.execution-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 13px;
+
+  &.running {
+    background: var(--warning-bg);
+  }
+
+  &.completed {
+    .execution-status-icon {
+      color: var(--success);
+    }
+  }
+
+  &.error {
+    .execution-status-icon {
+      color: var(--error);
+    }
+  }
+}
+
+.execution-index {
+  width: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.execution-name {
+  flex: 1;
+}
+
+.execution-error {
+  font-size: 12px;
+  color: var(--error);
+}

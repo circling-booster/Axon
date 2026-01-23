@@ -1,11 +1,13 @@
 /**
  * Axon IPC Handlers
  *
- * Axon 전용 IPC 핸들러 (Main → Renderer 통신)
+ * Axon 전용 IPC 핸들러 (Main ↔ Renderer 통신)
  */
 
 import { BrowserWindow } from "electron"
-import type { UserActionNotification } from "../../../folk/mcp-servers/types"
+import type { UserActionNotification } from "../../../folk/shared/types"
+import { registerStartupIPC, setMainWindow as setStartupMainWindow } from "../../../folk/electron/startup"
+import { registerUploadIPC, setMainWindow as setUploadMainWindow } from "../../../folk/electron/upload"
 
 /**
  * Renderer에 사용자 액션 필요 알림 전송
@@ -20,11 +22,16 @@ export function notifyUserAction(
 
 /**
  * Axon IPC 핸들러 등록
- * 현재는 Main → Renderer 단방향 통신만 사용
- * 향후 필요 시 ipcMain.handle() 추가 가능
+ * Startup, Upload 등 모든 Axon 모듈의 IPC 핸들러를 등록합니다.
  */
-export function ipcAxonHandler(_win: BrowserWindow) {
-  // 현재는 등록할 핸들러 없음
-  // notifyUserAction은 folk/mcp-servers에서 직접 호출
-  console.log("[Axon IPC] Handler registered")
+export function ipcAxonHandler(win: BrowserWindow) {
+  // Startup 모듈 설정
+  setStartupMainWindow(win)
+  registerStartupIPC()
+
+  // Upload 모듈 설정
+  setUploadMainWindow(win)
+  registerUploadIPC()
+
+  console.log("[Axon IPC] All handlers registered")
 }

@@ -1,4 +1,4 @@
-import { ipcRenderer, contextBridge } from "electron"
+import { ipcRenderer, contextBridge, webUtils } from "electron"
 
 import type { OAPModelDescriptionParam, MCPServerSearchParam, OAPLimiterCheckParam } from "../../types/oap"
 import type { ModelGroupSetting } from "../../types/model"
@@ -110,6 +110,11 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
     ipcRenderer.on("mcp.elicitation", listener as any)
     return () => ipcRenderer.off("mcp.elicitation", listener as any)
   },
+})
+
+// [AXON] Electron webUtils 노출 (파일 경로 획득용)
+contextBridge.exposeInMainWorld("webUtils", {
+  getPathForFile: (file: File) => webUtils.getPathForFile(file)
 })
 
 // --------- Preload scripts loading ---------

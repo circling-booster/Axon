@@ -132,8 +132,13 @@ export async function initMCPClient(win: BrowserWindow) {
   await initApp().catch(console.error)
 
   // [AXON] 기본 MCP 서버 등록
-  const { registerDefaultMcpServers } = await import("../../folk/mcp-servers")
+  const { registerDefaultMcpServers } = await import("../../folk/electron/mcp-servers")
   await registerDefaultMcpServers(win).catch(console.error)
+
+  // [AXON] Startup 콜백 등록
+  const { setupStartupCallback, setMainWindow } = await import("../../folk/electron/startup")
+  setMainWindow(win)
+  setupStartupCallback()
 
   await installHostDependencies(win).catch(console.error)
   await startHostService().catch(console.error)
@@ -141,6 +146,14 @@ export async function initMCPClient(win: BrowserWindow) {
 
 export async function cleanup() {
   console.log("cleanup")
+
+  // [AXON] Upload Manager cleanup (터널 종료)
+  try {
+    const { uploadCleanup } = await import("../../folk/electron/upload")
+    await uploadCleanup()
+  } catch (error) {
+    console.error("Failed to cleanup upload manager:", error)
+  }
 
   for (const child of spawned) {
     if (!child.killed) {

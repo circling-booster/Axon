@@ -20,6 +20,9 @@ import { invokeIPC, isTauri } from "../ipc"
 import ToolDropDown from "./ToolDropDown"
 import { historiesAtom } from "../atoms/historyState"
 
+// Axon: Upload Manager
+import { UploadToggle } from "../../folk/ui/upload"
+
 interface Props {
   page: "welcome" | "chat"
   onSendMessage?: (message: string, files?: FileList) => void
@@ -1026,6 +1029,13 @@ const ChatInput: React.FC<Props> = ({ page, onSendMessage, disabled, onAbort }) 
               </svg>
             </button>
           </Tooltip>
+          {/* Axon: Upload to Cloudflare */}
+          <UploadToggle
+            onUrlInsert={(url, fileName) => {
+              setMessage(prev => prev + (prev ? " " : "") + url)
+            }}
+            disabled={messageDisabled || disabled}
+          />
           <div className="chat-input-tools-container">
             <ToolDropDown />
             {(disabled && !isAborting) ? (

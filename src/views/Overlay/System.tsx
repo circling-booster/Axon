@@ -13,6 +13,10 @@ import { commonFlashAtom } from "../../atoms/globalState"
 import "../../styles/overlay/_System.scss"
 import Button from "../../components/Button"
 
+// Axon: Startup and Upload Settings
+import { StartupSettings } from "../../../folk/ui/startup"
+import { UploadSettings } from "../../../folk/ui/upload"
+
 const System = () => {
   const { t, i18n } = useTranslation()
   const [language, setLanguage] = useState(i18n.language)
@@ -190,6 +194,14 @@ const System = () => {
               </Button>
             </div>
           </div>
+
+          {/* Axon: Startup Prompts */}
+          <div className="system-section-divider" />
+          <StartupSettings />
+
+          {/* Axon: Upload Manager */}
+          <div className="system-section-divider" />
+          <UploadSettings />
         </div>
       </div>
     </div>

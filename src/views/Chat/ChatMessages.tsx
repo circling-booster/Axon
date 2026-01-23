@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai"
 import { ResourceUsage } from "./TokenUsagePopup"
 import ActiveToolsPanel, { ActiveToolCall } from "./ActiveToolsPanel"
 // Axon Audio Mixer
-import { AudioMixer } from "../../../folk/audio"
+import { AudioMixer } from "../../../folk/ui/audio"
 
 export interface Message {
   id: string
