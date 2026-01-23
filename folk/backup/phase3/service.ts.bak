@@ -130,11 +130,6 @@ export async function initMCPClient(win: BrowserWindow) {
   ipcEventEmitter.on("ipc", handler)
 
   await initApp().catch(console.error)
-
-  // [AXON] 기본 MCP 서버 등록
-  const { registerDefaultMcpServers } = await import("../../folk/mcp-servers")
-  await registerDefaultMcpServers(win).catch(console.error)
-
   await installHostDependencies(win).catch(console.error)
   await startHostService().catch(console.error)
 }

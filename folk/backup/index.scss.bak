@@ -1,8 +1,5 @@
 @use "variables" as *;
 
-// Axon Audio Mixer styles
-@use "../../folk/audio/styles/AudioMixer";
-
 @use "./components/Popup/AdvancedSetting";
 @use "./components/Header";
 @use "./components/HistorySidebar";

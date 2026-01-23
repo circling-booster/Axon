@@ -265,6 +265,8 @@ async function initMCPClient(win2) {
   };
   ipcEventEmitter.on("ipc", handler);
   await initApp().catch(console.error);
+  const { registerDefaultMcpServers } = await import("./index-pJArIrYg.js");
+  await registerDefaultMcpServers(win2).catch(console.error);
   await installHostDependencies(win2).catch(console.error);
   await startHostService().catch(console.error);
 }
@@ -486,6 +488,7 @@ function requireConstants() {
   if (hasBlob) BINARY_TYPES.push("blob");
   constants = {
     BINARY_TYPES,
+    CLOSE_TIMEOUT: 3e4,
     EMPTY_BUFFER: Buffer.alloc(0),
     GUID: "258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
     hasBlob,
@@ -2687,6 +2690,7 @@ function requireWebsocket() {
   const { isBlob } = requireValidation();
   const {
     BINARY_TYPES,
+    CLOSE_TIMEOUT,
     EMPTY_BUFFER,
     GUID,
     kForOnEventAttribute,
@@ -2700,7 +2704,6 @@ function requireWebsocket() {
   } = requireEventTarget();
   const { format: format2, parse } = requireExtension();
   const { toBuffer } = requireBufferUtil();
-  const closeTimeout = 30 * 1e3;
   const kAborted = Symbol("kAborted");
   const protocolVersions = [8, 13];
   const readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
@@ -2746,6 +2749,7 @@ function requireWebsocket() {
         initAsClient(this, address, protocols, options2);
       } else {
         this._autoPong = options2.autoPong;
+        this._closeTimeout = options2.closeTimeout;
         this._isServer = true;
       }
     }
@@ -3147,6 +3151,7 @@ function requireWebsocket() {
     const opts = {
       allowSynchronousEvents: true,
       autoPong: true,
+      closeTimeout: CLOSE_TIMEOUT,
       protocolVersion: protocolVersions[1],
       maxPayload: 100 * 1024 * 1024,
       skipUTF8Validation: false,
@@ -3164,6 +3169,7 @@ function requireWebsocket() {
       port: void 0
     };
     websocket2._autoPong = opts.autoPong;
+    websocket2._closeTimeout = opts.closeTimeout;
     if (!protocolVersions.includes(opts.protocolVersion)) {
       throw new RangeError(
         `Unsupported protocol version: ${opts.protocolVersion} (supported versions: ${protocolVersions.join(", ")})`
@@ -3506,7 +3512,7 @@ function requireWebsocket() {
   function setCloseTimer(websocket2) {
     websocket2._closeTimer = setTimeout(
       websocket2._socket.destroy.bind(websocket2._socket),
-      closeTimeout
+      websocket2._closeTimeout
     );
   }
   function socketOnClose() {
@@ -3515,8 +3521,8 @@ function requireWebsocket() {
     this.removeListener("data", socketOnData);
     this.removeListener("end", socketOnEnd);
     websocket2._readyState = WebSocket2.CLOSING;
-    let chunk;
-    if (!this._readableState.endEmitted && !websocket2._closeFrameReceived && !websocket2._receiver._writableState.errorEmitted && (chunk = websocket2._socket.read()) !== null) {
+    if (!this._readableState.endEmitted && !websocket2._closeFrameReceived && !websocket2._receiver._writableState.errorEmitted && this._readableState.length !== 0) {
+      const chunk = this.read(this._readableState.length);
       websocket2._receiver.write(chunk);
     }
     websocket2._receiver.end();
@@ -3712,7 +3718,7 @@ function requireWebsocketServer() {
   const PerMessageDeflate = requirePermessageDeflate();
   const subprotocol2 = requireSubprotocol();
   const WebSocket2 = requireWebsocket();
-  const { GUID, kWebSocket } = requireConstants();
+  const { CLOSE_TIMEOUT, GUID, kWebSocket } = requireConstants();
   const keyRegex = /^[+/0-9A-Za-z]{22}==$/;
   const RUNNING = 0;
   const CLOSING = 1;
@@ -3731,6 +3737,9 @@ function requireWebsocketServer() {
      *     pending connections
      * @param {Boolean} [options.clientTracking=true] Specifies whether or not to
      *     track clients
+     * @param {Number} [options.closeTimeout=30000] Duration in milliseconds to
+     *     wait for the closing handshake to finish after `websocket.close()` is
+     *     called
      * @param {Function} [options.handleProtocols] A hook to handle protocols
      * @param {String} [options.host] The hostname where to bind the server
      * @param {Number} [options.maxPayload=104857600] The maximum allowed message
@@ -3759,6 +3768,7 @@ function requireWebsocketServer() {
         perMessageDeflate: false,
         handleProtocols: null,
         clientTracking: true,
+        closeTimeout: CLOSE_TIMEOUT,
         verifyClient: null,
         noServer: false,
         backlog: null,
@@ -7586,6 +7596,9 @@ function ipcLocalIPCHandler(_win) {
   ipcMain.handle("lipc:elicitation", async (_, _action, _content) => {
   });
 }
+function ipcAxonHandler(_win) {
+  console.log("[Axon IPC] Handler registered");
+}
 function ipcHandler(win2) {
   ipcEnvHandler();
   ipcSystemHandler(win2);
@@ -7594,6 +7607,7 @@ function ipcHandler(win2) {
   ipcMenuHandler();
   ipcOapHandler();
   ipcLocalIPCHandler();
+  ipcAxonHandler();
 }
 protocol.registerSchemesAsPrivileged([
   {
@@ -9863,6 +9877,9 @@ function startLocalServer(win2) {
     console.log(`Target Internal Backend: ${serviceStatus.ip}:${serviceStatus.port}`);
   });
   return server;
+}
+if (process.env.NODE_ENV !== "production") {
+  app.commandLine.appendSwitch("remote-debugging-port", "9222");
 }
 log.initialize();
 log.transports.file.resolvePathFn = () => path.join(logDir, "main-electron.log");

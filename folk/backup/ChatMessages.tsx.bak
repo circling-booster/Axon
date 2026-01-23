@@ -4,8 +4,6 @@ import { isChatStreamingAtom } from "../../atoms/chatState"
 import { useAtomValue } from "jotai"
 import { ResourceUsage } from "./TokenUsagePopup"
 import ActiveToolsPanel, { ActiveToolCall } from "./ActiveToolsPanel"
-// Axon Audio Mixer
-import { AudioMixer } from "../../../folk/audio"
 
 export interface Message {
   id: string
@@ -180,8 +178,6 @@ const ChatMessages = forwardRef<ChatMessagesRef, Props>(({ messages, isLoading, 
           </svg>
         </button>
       </div>
-      {/* Axon Audio Mixer - floating panel */}
-      <AudioMixer />
     </div>
   )
 })

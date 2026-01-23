@@ -1,6 +1,11 @@
 import { app, BrowserWindow, shell, ipcMain } from "electron"
 import path from "node:path"
 import os from "node:os"
+
+// [CDP] 원격 디버깅 포트 활성화 (개발 모드에서만)
+if (process.env.NODE_ENV !== 'production') {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222')
+}
 import AppState from "./state"
 import { cleanup, initMCPClient } from "./service"
 import { getUnixSystemPath, modifyPath } from "./util"

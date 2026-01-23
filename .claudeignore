@@ -1,6 +1,6 @@
 ﻿#별도제외 필요시조정
 src-tauri/
-src/styles/
+#src/styles/
 temp/
 test/
 

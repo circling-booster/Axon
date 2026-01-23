@@ -19,6 +19,8 @@ import "../../styles/pages/_Chat.scss"
 import { forceRestartMcpConfigAtom, loadToolsAtom, Tool, toolsAtom } from "../../atoms/toolState"
 import "../../styles/pages/_Chat.scss"
 import { createPortal } from "react-dom"
+// Axon Audio Mixer
+import { AudioWatcher } from "../../../folk/audio"
 
 interface ToolCall {
   name: string
@@ -960,6 +962,12 @@ const ChatWindow = () => {
             onAbort={onAbort}
           />
         </div>
+        {/* Axon Audio Watcher - monitors messages for audio URLs */}
+        <AudioWatcher
+          messages={messages}
+          chatId={currentChatIdRef.current || ""}
+          isChatStreaming={isChatStreaming}
+        />
       </div>
       {showAuthorizePopup && currentTool && (
         <AuthorizePopup
