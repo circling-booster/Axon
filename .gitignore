@@ -145,3 +145,4 @@ release/
 
 # 스크립트(download:windows-bin)를 통해 다운로드된 외부 바이너리 폴더
 bin/
+nul
